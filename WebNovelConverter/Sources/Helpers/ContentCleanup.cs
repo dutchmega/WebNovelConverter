@@ -16,7 +16,17 @@ namespace WebNovelConverter.Sources.Helpers
         {
             RemoveEmptyElements(element);
             RemoveMultipleBr(element);
-            CreateParagraphs(doc, element);
+
+            if (_baseUrl == "http://lnmtl.com")
+            {
+                AddWhitespaces(element);
+                CreateParagraphsLNMTL(doc, element);
+            }
+            else
+            {
+                CreateParagraphs(doc, element);
+            }
+
             RemoveEmptyTextNodes(element);
             MakeURLsAbsolute(doc, element);
 
@@ -30,7 +40,7 @@ namespace WebNovelConverter.Sources.Helpers
                 foreach (IElement el in element.QuerySelectorAll("img"))
                 {
                     var src = el.Attributes["src"]?.Value;
-                    if(src != null && src.StartsWith("/") )
+                    if (src != null && src.StartsWith("/"))
                     {
                         el.SetAttribute("src", UrlHelper.ToAbsoluteUrl(_baseUrl, src));
                     }
@@ -52,6 +62,20 @@ namespace WebNovelConverter.Sources.Helpers
                 {
                     el.Remove();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Adds a whitespace after each (<w>) element (for LNMTL)
+        /// </summary>
+        /// <param name="rootElement"></param>
+        private void AddWhitespaces(IElement rootElement)
+        {
+            foreach (IElement el in rootElement.QuerySelectorAll("w"))
+            {
+                AddWhitespaces(el);
+
+                el.TextContent = el.TextContent.PadRight(el.TextContent.Length + 1);
             }
         }
 
@@ -128,6 +152,28 @@ namespace WebNovelConverter.Sources.Helpers
 
                 else if (child.NodeType == NodeType.Element)
                     CreateParagraphs(doc, child as IElement);
+            }
+        }
+
+        /// <summary>
+        /// Inserts a paragraph after each 'SENTENCE' element (for LNMTL)
+        /// </summary>
+        /// <param name="doc"></param>
+        /// <param name="element"></param>
+        private void CreateParagraphsLNMTL(IDocument doc, IElement element)
+        {
+            foreach (var child in element.ChildNodes.ToList())
+            {
+                if (child.NodeType == NodeType.Element && child.NodeName == "SENTENCE")
+                {
+                    var parent = child.ParentElement;
+
+                    // Add Node to replace it with a paragraph
+                    parent.InsertBefore(child, child);
+
+                    // Replace text node with <p>
+                    var pEl = ReplaceElementWithParagraph(doc, child);
+                }
             }
         }
 
